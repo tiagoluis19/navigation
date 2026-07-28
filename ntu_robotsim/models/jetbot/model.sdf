@@ -224,7 +224,7 @@
         </visual>
         <sensor name="camera_front" type="rgbd_camera">
             <topic>rgbd_camera</topic>
-			      <ignition_frame_id>realsense</ignition_frame_id>
+			      <gz_frame_id>realsense</gz_frame_id>
             <pose>0.1 0 0.19 0 0 0</pose>
             <always_on>1</always_on>
             <update_rate>5</update_rate>
@@ -292,7 +292,7 @@
         </visual>
         <sensor name="lidar" type="gpu_lidar">
             <topic>scan</topic>
-            <ignition_frame_id>base_laser</ignition_frame_id>
+            <gz_frame_id>base_laser</gz_frame_id>
             <pose>0 0 0.28 0 0 0</pose>
             <always_on>1</always_on>
             <update_rate>10</update_rate>
@@ -488,8 +488,8 @@
 	
 	<!-- Differential drive plugin for rear wheels -->
     <plugin
-      filename="libignition-gazebo-diff-drive-system.so"
-      name="ignition::gazebo::systems::DiffDrive">
+      filename="gz-sim-diff-drive-system"
+      name="gz::sim::systems::DiffDrive">
       <left_joint>joint_tire_left</left_joint>
       <right_joint>joint_tire_right</right_joint>
   <!-- Match physical wheel geometry to improve odometry consistency -->
@@ -507,8 +507,8 @@
 
     <!-- ground truth odometry plugin -->
     <plugin
-      filename="libignition-gazebo-odometry-publisher-system.so"
-      name="ignition::gazebo::systems::OdometryPublisher">
+      filename="gz-sim-odometry-publisher-system"
+      name="gz::sim::systems::OdometryPublisher">
       <dimensions>3</dimensions>
       <odom_publish_frequency>50.0</odom_publish_frequency>
       <odom_topic>odom_ground_truth</odom_topic>

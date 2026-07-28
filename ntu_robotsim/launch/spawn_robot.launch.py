@@ -2,7 +2,6 @@ import os
 import yaml
 import xml.etree.ElementTree as ET
 import copy
-
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, DeclareLaunchArgument, OpaqueFunction
@@ -23,7 +22,6 @@ def get_quaternion_from_euler(roll, pitch, yaw):
     qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
     qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
     qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
-
     return [qx, qy, qz, qw]
 
 
@@ -76,21 +74,21 @@ def namespace_sdf_file(sdf_path, params):
     #     if sensor.attrib['name'] == 'front_laser':
     #         # Give the laser scan points a unique topic name
     #         sensor.find('topic').text = namespace + '/laser_scan'
-    #         # Create the ignition frame id for the laser scan and make it unique
-    #         sensor.find('ignition_frame_id').text = namespace + '/' + sensor.find('ignition_frame_id').text
+    #         # Create the gz frame id for the laser scan and make it unique
+    #         # NOTE: Gazebo Harmony renamed the SDF tag from <ignition_frame_id> to <gz_frame_id>
+    #         sensor.find('gz_frame_id').text = namespace + '/' + sensor.find('gz_frame_id').text
     #     if sensor.attrib['name'] == 'camera_front':
     #         # Give the laser scan points a unique topic name
     #         sensor.find('topic').text = namespace + '/rgbd_camera'
-    #         # Create the ignition frame id for the laser scan and make it unique
-    #         sensor.find('ignition_frame_id').text = namespace + '/' + sensor.find('ignition_frame_id').text
+    #         # Create the gz frame id for the laser scan and make it unique
+    #         sensor.find('gz_frame_id').text = namespace + '/' + sensor.find('gz_frame_id').text
     #     if sensor.attrib['name'] == 'imu_sensor' and params['use_imu']:
     #         # Set always on for the imu sensor to true
     #         sensor.find('always_on').text = '0'
     #         # Give the imu sensor a unique topic name
     #         sensor.find('topic').text = namespace + '/imu/data'
-    #         # Create the ignition frame id for the imu sensor and make it unique
-    #         sensor.find('ignition_frame_id').text = namespace + '/' + sensor.find('ignition_frame_id').text
-
+    #         # Create the gz frame id for the imu sensor and make it unique
+    #         sensor.find('gz_frame_id').text = namespace + '/' + sensor.find('gz_frame_id').text
     tree.write(file_or_filename=sdf_path, encoding='utf-8', xml_declaration=True)
 
 
@@ -105,7 +103,6 @@ def launch_setup(context):
     robot_name = context.launch_configurations['robot_name']
     params['robot_name'] = robot_name
     print(yaml.dump(params, sort_keys=False, default_flow_style=False))
-
     sdf_path = os.path.join(ntu_hmrs_sim_share_dir, 'models', params['sdf_file'])
     sdf_path_final = copy.deepcopy(sdf_path)
     if robot_name != '':
@@ -113,24 +110,18 @@ def launch_setup(context):
         sdf_path_final = sdf_path.replace('.sdf', '_' + robot_name + '.sdf')
         os.system(f'cp {sdf_path} {sdf_path_final}')
         namespace_sdf_file(sdf_path_final, params)
-
     ign_service_name = '/world/' + params['world'] + '/create'
-
     x, y, z = params['x'], params['y'], params['z']
     qx, qy, qz, qw = get_quaternion_from_euler(params['roll'], params['pitch'], params['yaw'])
-
     ign_request_args = 'sdf_filename: \"' + sdf_path_final + '\"' + ', name: \"' + params['robot_name'] + \
         '\"' + f', pose: {{ position: {{ x: {x}, y: {y}, z: {z} }}, orientation: {{ x: {qx}, y: {qy}, z: {qz}, w: {qw} }}}}'
-
-    cmd_string_list = ['ign', 'service', '-s', ign_service_name, '--reqtype', 'ignition.msgs.EntityFactory', '--reptype',
-                       'ignition.msgs.BooleanMsg', '--timeout', '10000', '--req', ign_request_args]
-
+    # Gazebo Harmony (gz-sim 8) dropped the "ignition" message namespace in favor of "gz"
+    cmd_string_list = ['gz', 'service', '-s', ign_service_name, '--reqtype', 'gz.msgs.EntityFactory', '--reptype',
+                       'gz.msgs.Boolean', '--timeout', '10000', '--req', ign_request_args]
     print(f'executing command: {cmd_string_list}')
     process = ExecuteProcess(
-        cmd=['ign', 'service', '-s', ign_service_name, '--reqtype', 'ignition.msgs.EntityFactory', '--reptype',
-             'ignition.msgs.Boolean', '--timeout', '10000', '--req', ign_request_args],
+        cmd=cmd_string_list,
         output='screen')
-
     return [process]
 
 
@@ -139,5 +130,4 @@ def generate_launch_description():
     for param_name, _ in CLI_PARAM_MAPPING.items():
         launch_description_list.append(DeclareLaunchArgument(param_name, default_value='', description=''))
     launch_description_list.append(OpaqueFunction(function=launch_setup))
-
     return LaunchDescription(launch_description_list)
